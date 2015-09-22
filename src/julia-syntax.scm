@@ -2961,7 +2961,7 @@ So far only the second case can actually occur.
 
 (define (caddddr x) (car (cdr (cdr (cdr (cdr x))))))
 ; convert each lambda's (locals ...) to
-;   ((localvars...) var-info-lst captured-var-infos)
+;   (var-info-lst captured-var-infos gensyms static_params)
 ; where var-info-lst is a list of var-info records
 (define (analyze-vars e env captvars sp)
   (if (or (atom? e) (quoted? e))
@@ -3082,10 +3082,174 @@ So far only the second case can actually occur.
 
 (define (analyze-variables e) (analyze-vars e '() '() '()))
 
+(define (convert-lambda lam fname tname)
+  `(lambda ,(append (list fname) (lam:args lam))
+     (,(car (lam:vinfo lam)) ; TODO clear vinfo:capt
+      ()
+      ,(caddr (lam:vinfo lam))
+      ,(cadddr (lam:vinfo lam)))
+     ,(closure-convert (cadddr lam) fname lam)))
+
+(define (cl-convert e) (closure-convert e #f #f))
+
+(define (internal-toplevel-exprs e)
+  (filter (lambda (x) (not (and (pair? x) (eq? (car x) 'return))))
+	  (cdr (flatten-blocks `(block ,e)))))
+
+#|
+Function redesign plan
+
+This can be done with a few intermediate stages.
+
+1. Introduce the following hacked-together closure converter to lift all
+inner functions to the top level as type and `call` definitions.
+
+2. Remove the front end's dependence on intermediate lambdas. Instead,
+all temp vars can be locals of a top level thunk, which is just a
+LambdaStaticData that can be called directly (the jl_function_t wrapper
+we used to put around it is superfluous in this case).
+
+3. Decide how to handle method defs wrapped in `let`. Possibly just make
+a closure like normal, then do
+
+@eval f(x...) = ($(ClosureType(a, b, c)))(x...)
+
+4. Now jl_function_t can be removed, along with the old implementation of
+closure conversion which is mostly in codegen.cpp. The captured vars
+field in ASTs can be removed.
+
+5. At this stage the call ABI for f(x) can effectively be
+
+if isa(f,MethodTable)
+  jl_apply_generic(f, {x}, 1)
+else
+  call(f, x)
+end
+
+6. Move MethodTable into TypeName. Lower f(x)=2x to
+
+immutable _ftype; end
+call(::_ftype, x) = 2x
+const f = _ftype()
+
+Definitions of `call` now need to be intercepted to modify the MethodTable
+of the TypeName of the first argument.
+
+The ABI for f(x) is now
+
+jl_call({f, x}, 2)
+
+where jl_apply_generic has been renamed jl_call.
+
+|#
+(define (closure-convert e fname lam)
+  (if (and (not lam)
+	   (not (and (pair? e) (memq (car e) '(lambda method)))))
+      (if (atom? e) e
+	  (cons (car e) (map (lambda (x) (closure-convert x fname lam))
+			     (cdr e))))
+      (cond
+       ((symbol? e)
+	(let ((vi (assq e (car  (lam:vinfo lam))))
+	      (cv (assq e (cadr (lam:vinfo lam)))))
+	  (cond ((eq? e fname) e)
+		(cv
+		 (let ((access `(call (top getfield) ,fname (inert ,e))))
+		   (if (vinfo:asgn cv)
+		       `(call (top getfield) ,access (inert contents))
+		       access)))
+		(vi
+		 (if (and (vinfo:asgn vi) (vinfo:capt vi))
+		     `(call (top getfield) ,e (inert contents))
+		     e))
+		(else e))))
+       ((atom? e) e)
+       (else
+	(case (car e)
+	  ((quote inert) e)
+	  ((=)
+	   (let ((var (cadr e)))
+	     (let ((vi (assq var (car  (lam:vinfo lam))))
+		   (cv (assq var (cadr (lam:vinfo lam)))))
+	       (cond
+		(cv
+		 (if (vinfo:asgn cv)
+		     `(call (top setfield!) (call (top getfield) ,fname (inert ,var))
+			    (inert contents)
+			    ,(caddr e))
+		     (assert #f)))
+		(vi
+		 (if (and (vinfo:asgn vi) (vinfo:capt vi))
+		     `(call (top setfield!) ,var (inert contents) ,(caddr e))
+		     e))
+		(else e)))))
+	  ((newvar)
+	   (let ((vi (assq (cadr e) (car  (lam:vinfo lam)))))
+	     (if (and vi (vinfo:asgn vi) (vinfo:capt vi))
+		 `(= ,(cadr e) (call (top Box)))
+		 e)))
+	  #;((call)
+	   (let ((f (cadr e)))
+	     (if (and (pair? f) (eq? (car f) 'lambda)
+		      (null? (cadr f))
+		      (length= (cadddr f) 2))
+		 (cadr (cadr (cadddr f)))
+		 (cons (car e)
+		       (map (lambda (x) (closure-convert x fname lam))
+			    (cdr e))))))
+	  ((macro) e)
+	  ((method)
+	   (let* ((name (method-expr-name e))
+		  (lam  (cadddr e))
+		  (tname (named-gensy name))
+		  (cvs  (cadr (lam:vinfo lam))))
+	     (if (and (null? cvs) (not fname))
+		 `(method ,(cadr e) ,(caddr e)
+			  (lambda ,(cadr lam)
+			    ,(caddr lam)
+			    ,(cl-convert (cadddr lam)))
+			  ,(last e))
+		 `(toplevel-butlast
+		   ,@(internal-toplevel-exprs
+		      (julia-expand-for-cl-convert
+		       `(type #f ,tname
+			      (block ,@(map car cvs)))))
+		   (method call
+			   (call (top svec)
+				 (call (top apply_type) Tuple ,tname ,@(cdddr (caddr (caddr e))))
+				 ,(cadddr (caddr e)))
+			   ,(convert-lambda lam name tname)
+			   ,(last e))
+		   (= ,name (call ,tname ,@(map car cvs)))))))
+	  ((lambda)
+	   (let ((name (gensy))
+		 (lam  e)
+		 (tname (named-gensy 'anon))
+		 (cvs  (cadr (lam:vinfo e))))
+	     (if (and (null? cvs) (null? (cadr e)) (not fname))
+		 `(lambda ,(cadr e)
+		    ,(caddr e)
+		    ,(cl-convert (cadddr e)))
+		 `(toplevel-butlast
+		   ,@(internal-toplevel-exprs
+		      (julia-expand-for-cl-convert
+		       `(type #f ,tname
+			      (block ,@(map car cvs)))))
+		   (method call
+			   (call (top svec)
+				 (call (top apply_type) Tuple ,tname ,@(map arg-type (cadr e)))
+				 (call (top svec)))
+			   ,(convert-lambda e name tname)
+			   #f)
+		   (call ,tname ,@(map car cvs))))))
+	  (else (cons (car e)
+		      (map (lambda (x) (closure-convert x fname lam))
+			   (cdr e)))))))))
+
 (define (not-bool e)
   (cond ((memq e '(true #t))  'false)
-        ((memq e '(false #f)) 'true)
-        (else                 `(call (top !) ,e))))
+	((memq e '(false #f)) 'true)
+	(else                 `(call (top !) ,e))))
 
 ;; remove if, _while, block, break-block, and break
 ;; replaced with goto and gotoifnot
@@ -3574,12 +3738,20 @@ So far only the second case can actually occur.
 
 ;; expander entry point
 
+(define (julia-expand-for-cl-convert ex)
+  (analyze-variables
+   (renumber-jlgensym
+    (flatten-scopes
+     (identify-locals
+      (julia-expand0 ex))))))
+
 (define (julia-expand1 ex)
   (to-goto-form
+   (cl-convert
     (analyze-variables
      (renumber-jlgensym
       (flatten-scopes
-       (identify-locals ex))))))
+       (identify-locals ex)))))))
 
 (define (julia-expand01 ex)
   (to-LFF
