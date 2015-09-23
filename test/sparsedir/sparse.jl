@@ -48,7 +48,7 @@ de33 = eye(3)
 # also side-checks sparse ref
 for i = 1 : 10
     a = sprand(5, 4, 0.5)
-    @test all([a[1:2,1:2] a[1:2,3:4]; a[3:5,1] [a[3:4,2:4]; a[5,2:4]]] == a)
+    @test all([a[1:2,1:2] a[1:2,3:4]; a[3:5,1] [a[3:4,2:4]; a[5:5,2:4]]] == a)
 end
 
 # sparse ref
@@ -380,18 +380,18 @@ for (aa116, ss116) in [(a116, s116), (ad116, sd116)]
     ss116 = sparse(aa116)
 
     # range indexing
-    @test full(ss116[i,:]) == aa116[i,:]
+    @test full(ss116[i,:]) == aa116[i,:]''
     @test full(ss116[:,j]) == aa116[:,j]'' # sparse matrices/vectors always have ndims==2:
-    @test full(ss116[i,1:2:end]) == aa116[i,1:2:end]
+    @test full(ss116[i,1:2:end]) == aa116[i,1:2:end]''
     @test full(ss116[1:2:end,j]) == aa116[1:2:end,j]''
-    @test full(ss116[i,end:-2:1]) == aa116[i,end:-2:1]
+    @test full(ss116[i,end:-2:1]) == aa116[i,end:-2:1]''
     @test full(ss116[end:-2:1,j]) == aa116[end:-2:1,j]''
     # float-range indexing is not supported
 
     # sorted vector indexing
-    @test full(ss116[i,[3:2:end-3;]]) == aa116[i,[3:2:end-3;]]
+    @test full(ss116[i,[3:2:end-3;]]) == aa116[i,[3:2:end-3;]]''
     @test full(ss116[[3:2:end-3;],j]) == aa116[[3:2:end-3;],j]''
-    @test full(ss116[i,[end-3:-2:1;]]) == aa116[i,[end-3:-2:1;]]
+    @test full(ss116[i,[end-3:-2:1;]]) == aa116[i,[end-3:-2:1;]]''
     @test full(ss116[[end-3:-2:1;],j]) == aa116[[end-3:-2:1;],j]''
 
     # unsorted vector indexing with repetition
@@ -405,7 +405,7 @@ for (aa116, ss116) in [(a116, s116), (ad116, sd116)]
     lj = bitrand(size(aa116,2))
     @test full(ss116[li,j]) == aa116[li,j]''
     @test full(ss116[li,:]) == aa116[li,:]
-    @test full(ss116[i,lj]) == aa116[i,lj]
+    @test full(ss116[i,lj]) == aa116[i,lj]''
     @test full(ss116[:,lj]) == aa116[:,lj]
     @test full(ss116[li,lj]) == aa116[li,lj]
 
@@ -454,13 +454,13 @@ let a = spzeros(Int, 10, 10)
     @test countnz(a) == 0
     a[1,:] = 1
     @test countnz(a) == 10
-    @test a[1,:] == sparse(ones(Int,1,10))
+    @test a[1,:] == sparse(ones(Int,10,1))
     a[:,2] = 2
     @test countnz(a) == 19
     @test a[:,2] == 2*sparse(ones(Int,10,1))
 
     a[1,:] = 1:10
-    @test a[1,:] == sparse([1:10;]')
+    @test a[1,:] == sparse([1:10;])
     a[:,2] = 1:10
     @test a[:,2] == sparse([1:10;])
 end

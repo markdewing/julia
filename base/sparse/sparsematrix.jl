@@ -1295,7 +1295,7 @@ function getindex{T}(A::SparseMatrixCSC{T}, i0::Integer, i1::Integer)
 end
 
 getindex{T<:Integer}(A::SparseMatrixCSC, I::AbstractVector{T}, j::Integer) = getindex(A,I,[j])
-getindex{T<:Integer}(A::SparseMatrixCSC, i::Integer, J::AbstractVector{T}) = getindex(A,[i],J)
+getindex{T<:Integer}(A::SparseMatrixCSC, i::Integer, J::AbstractVector{T}) = getindex(A,[i],J)' # TODO: this is so bad i cant even
 
 # Colon translation (this could be done more efficiently)
 getindex(A::SparseMatrixCSC, ::Colon)          = getindex(A, 1:length(A))
