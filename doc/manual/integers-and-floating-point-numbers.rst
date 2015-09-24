@@ -353,15 +353,15 @@ Special floating-point values
 There are three specified standard floating-point values that do not
 correspond to any point on the real number line:
 
-=========== =========== ===========  ================= =================================================================
-Special value                        Name              Description
------------------------------------  ----------------- -----------------------------------------------------------------
-``Float16`` ``Float32`` ``Float64``
-=========== =========== ===========  ================= =================================================================
-``Inf16``   ``Inf32``    ``Inf``     positive infinity a value greater than all finite floating-point values
-``-Inf16``  ``-Inf32``   ``-Inf``    negative infinity a value less than all finite floating-point values
-``NaN16``   ``NaN32``    ``NaN``     not a number      a value not ``==`` to any floating-point value (including itself)
-=========== =========== ===========  ================= =================================================================
+.. =========== =========== ===========  ================= =================================================================
+.. Special value                        Name              Description
+.. -----------------------------------  ----------------- -----------------------------------------------------------------
+.. ``Float16`` ``Float32`` ``Float64``
+.. =========== =========== ===========  ================= =================================================================
+.. ``Inf16``   ``Inf32``    ``Inf``     positive infinity a value greater than all finite floating-point values
+.. ``-Inf16``  ``-Inf32``   ``-Inf``    negative infinity a value less than all finite floating-point values
+.. ``NaN16``   ``NaN32``    ``NaN``     not a number      a value not ``==`` to any floating-point value (including itself)
+.. =========== =========== ===========  ================= =================================================================
 
 For further discussion of how these non-finite floating-point values are
 ordered with respect to each other and other floats, see

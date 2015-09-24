@@ -1732,7 +1732,7 @@ multi-threading. Use ``FFTW.set_num_threads(np)`` to use ``np`` threads.
 
    A one-dimensional FFT computes the one-dimensional discrete Fourier transform (DFT) as defined by
 
-   .. math::
+   .. code-block:: julia
 
        \operatorname{DFT}(A)[k] =
          \sum_{n=1}^{\operatorname{length}(A)}
@@ -1758,7 +1758,7 @@ multi-threading. Use ``FFTW.set_num_threads(np)`` to use ``np`` threads.
 
    A one-dimensional inverse FFT computes
 
-   .. math::
+   .. code-block:: julia
 
        \operatorname{IDFT}(A)[k] = \frac{1}{\operatorname{length}(A)}
        \sum_{n=1}^{\operatorname{length}(A)} \exp\left(+i\frac{2\pi (n-1)(k-1)}
@@ -1782,7 +1782,7 @@ multi-threading. Use ``FFTW.set_num_threads(np)`` to use ``np`` threads.
    more efficient than :func:`ifft` because it omits a scaling step, which in
    some applications can be combined with other computational steps elsewhere.)
 
-   .. math::
+   .. code-block:: julia
 
       \operatorname{BDFT}(A)[k] = \operatorname{length}(A) \operatorname{IDFT}(A)[k]
 

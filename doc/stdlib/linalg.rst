@@ -204,7 +204,7 @@ Linear algebra functions in Julia are largely implemented by calling functions f
 
       The data contained in ``QR`` or ``QRPivoted`` can be used to construct the ``QRPackedQ`` type, which is a compact representation of the rotation matrix:
 
-         .. math::
+         .. code-block:: julia
 
             Q = \prod_{i=1}^{\min(m,n)} (I - \tau_i v_i v_i^T)
 
@@ -212,7 +212,7 @@ Linear algebra functions in Julia are largely implemented by calling functions f
 
       The data contained in ``QRCompactWY`` can be used to construct the ``QRCompactWYQ`` type, which is a compact representation of the rotation matrix
 
-         .. math::
+         .. code-block:: julia
 
             Q = I + Y T Y^T
 
@@ -668,7 +668,7 @@ Linear algebra functions in Julia are largely implemented by calling functions f
 
    .. Docstring generated from Julia source
 
-   .. math::
+   .. code-block:: julia
 
        \kappa_S(M, p) & = \left\Vert \left\vert M \right\vert \left\vert M^{-1} \right\vert  \right\Vert_p \\
        \kappa_S(M, x, p) & = \left\Vert \left\vert M \right\vert \left\vert M^{-1} \right\vert \left\vert x \right\vert \right\Vert_p
@@ -799,7 +799,7 @@ Linear algebra functions in Julia are largely implemented by calling functions f
 
    Compute the matrix exponential of ``A``, defined by
 
-   .. math::
+   .. code-block:: julia
       e^A = \sum_{n=0}^{\infty} \frac{A^n}{n!}.
 
    For symmetric or Hermitian ``A``, an eigendecomposition (:func:`eigfact`) is used, otherwise the scaling and squaring algorithm (see [H05]_) is chosen.
