@@ -437,6 +437,11 @@
           ((eq? (car lhs) 'kw) (cadr lhs))
           (else                lhs))))
 
+(define (unwrap-getfield-expr e)
+  (if (and (length= e 4) (eq? (car e) 'call) (equal? (cadr e) '(top getfield)))
+      (cadr (last e))
+      e))
+
 (define (method-expr-static-parameters m)
   (if (eq? (car (cadr (caddr m))) 'lambda)
       (cadr (cadr (caddr m)))
@@ -469,7 +474,9 @@
            (error "function static parameter names not unique"))
        (if (any (lambda (x) (memq x names)) anames)
            (error "function argument and static parameter names must be distinct")))
-     (if (not (or (sym-ref? name)
+     ;; TODO: this is currently broken by the code in closure-convert that
+     ;; puts a lowered method name expression back into a front-end AST
+     #;(if (not (or (sym-ref? name)
                   (and (pair? name) (eq? (car name) 'kw)
                        (sym-ref? (cadr name)))))
          (error (string "invalid method name \"" (deparse name) "\"")))
@@ -3102,6 +3109,25 @@ So far only the second case can actually occur.
 			   (not (equal? x '(null)))))
 	  (cdr (flatten-blocks `(block ,e)))))
 
+(define (convert-assignment var rhs fname lam)
+  (let ((vi (assq var (car  (lam:vinfo lam))))
+	(cv (assq var (cadr (lam:vinfo lam)))))
+    (cond
+     ((and cv (vinfo:asgn cv))
+      `(call (top setfield!) (call (top getfield) ,fname (inert ,var))
+	     (inert contents)
+	     ,rhs))
+     ((and vi (vinfo:asgn vi) (vinfo:capt vi))
+      `(call (top setfield!) ,var (inert contents) ,rhs))
+     (else
+      `(= ,var ,rhs)))))
+
+(define (arg-type-lowered a)
+  (let ((t (arg-type a)))
+    (if (vararg? t)
+	`(call (top apply_type) Vararg ,(cadr t))
+	t)))
+
 #|
 Function redesign plan
 
@@ -3151,6 +3177,9 @@ where jl_apply_generic has been renamed jl_call.
 
 7. Figure out how to pass in static parameters in --compile=no mode.
 
+8. propagate static parameters into closure types, so e.g. closure method
+signatures can depend on them.
+
 |#
 (define (closure-convert e fname lam)
   (if (and (not lam)
@@ -3180,22 +3209,17 @@ where jl_apply_generic has been renamed jl_call.
 	  ((=)
 	   (let ((var (cadr e))
 		 (rhs (closure-convert (caddr e) fname lam)))
-	     (let ((vi (assq var (car  (lam:vinfo lam))))
-		   (cv (assq var (cadr (lam:vinfo lam)))))
-	       (cond
-		((and cv (vinfo:asgn cv))
-		 `(call (top setfield!) (call (top getfield) ,fname (inert ,var))
-			(inert contents)
-			,rhs))
-		((and vi (vinfo:asgn vi) (vinfo:capt vi))
-		 `(call (top setfield!) ,var (inert contents) ,rhs))
-		(else
-		 `(= ,var ,rhs))))))
+	     (convert-assignment var rhs fname lam)))
 	  ((newvar)
-	   (let ((vi (assq (cadr e) (car  (lam:vinfo lam)))))
+	   (let ((vi (assq (cadr e) (car (lam:vinfo lam)))))
 	     (if (and vi (vinfo:asgn vi) (vinfo:capt vi))
 		 `(= ,(cadr e) (call (top Box)))
 		 e)))
+	  ((const)
+	   (if (or (assq (cadr e) (car  (lam:vinfo lam)))
+		   (assq (cadr e) (cadr (lam:vinfo lam))))
+	       '(null)
+	       e))
 	  #;((call)
 	   (let ((f (cadr e)))
 	     (if (and (pair? f) (eq? (car f) 'lambda)
@@ -3209,7 +3233,8 @@ where jl_apply_generic has been renamed jl_call.
 	  ((method)
 	   (if (length= e 2)
 	       e ;; function f end
-	       (let* ((name (method-expr-name e))
+	       (let* ((name (unwrap-getfield-expr (method-expr-name e)))
+		      ;; TODO: force global mode if method-expr-name returns a getfield expr
 		      (lam2 (cadddr e))
 		      (tname (named-gensy name))
 		      (vis  (lam:vinfo lam2))
@@ -3234,7 +3259,29 @@ where jl_apply_generic has been renamed jl_call.
 				     ,(cadddr (caddr e)))
 			       ,(convert-lambda lam2 name tname)
 			       ,(last e))
-		       (= ,name (call ,tname ,@(map car cvs))))))))
+		       ,(let ((the-closure `(call ,tname ,@(map car cvs))))
+			  (if (and lam (or (assq name (car  (lam:vinfo lam)))
+					   (assq name (cadr (lam:vinfo lam)))))
+			      (convert-assignment name the-closure fname lam)
+			      ;; otherwise, adding method with free variables to a global function.
+			      ;; lowered to @eval f(x, y...) = ($(clo(fv)))(x, y...)
+			      `(call
+				(top eval)
+				,(current-julia-module)
+				,(cadr
+				  (julia-expand-for-cl-convert
+				   `(quote
+				     (= (call ,name ,@(map (lambda (arg type)
+							     (if (symbol? arg)
+								 `(|::| ,arg ,type)
+								 arg))
+							   (cadr lam2)
+							   (cdddr (caddr (caddr e)))))
+					(call ($ ,the-closure)
+					      ,@(map (lambda (arg) (if (symbol? arg)
+								       arg
+								       (list '... arg)))
+						     (cadr lam2)))))))))))))))
 	  ((lambda)
 	   (let ((name (gensy))
 		 (tname (named-gensy 'anon))
@@ -3254,7 +3301,7 @@ where jl_apply_generic has been renamed jl_call.
 			      (block ,@(map car cvs)))))
 		   (method call
 			   (call (top svec)
-				 (call (top apply_type) Tuple ,tname ,@(map arg-type (cadr e)))
+				 (call (top apply_type) Tuple ,tname ,@(map arg-type-lowered (cadr e)))
 				 (call (top svec)))
 			   ,(convert-lambda e name tname)
 			   #f)
