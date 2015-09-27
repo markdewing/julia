@@ -1367,7 +1367,7 @@ Usually a function has 4 methods defined, one each for ``Float64``,
 
    Compute the ``LQ`` factorization of ``A``\ , ``A = LQ``\ .
 
-   Returns ``A``\ modified in-place, and ``tau``\ , which contains scalars which parameterize the elementary reflectors of the factorization.
+   Returns ``A``\ , modified in-place, and ``tau``\ , which contains scalars which parameterize the elementary reflectors of the factorization.
 
 .. function:: geqlf!(A, tau)
 
@@ -1383,7 +1383,7 @@ Usually a function has 4 methods defined, one each for ``Float64``,
 
    Compute the ``QL`` factorization of ``A``\ , ``A = QL``\ .
 
-   Returns ``A``\ modified in-place, and ``tau``\ , which contains scalars which parameterize the elementary reflectors of the factorization.
+   Returns ``A``\ , modified in-place, and ``tau``\ , which contains scalars which parameterize the elementary reflectors of the factorization.
 
 .. function:: geqrf!(A, tau)
 
@@ -1399,7 +1399,7 @@ Usually a function has 4 methods defined, one each for ``Float64``,
 
    Compute the ``QR`` factorization of ``A``\ , ``A = QR``\ .
 
-   Returns ``A``\ modified in-place, and ``tau``\ , which contains scalars which parameterize the elementary reflectors of the factorization.
+   Returns ``A``\ , modified in-place, and ``tau``\ , which contains scalars which parameterize the elementary reflectors of the factorization.
 
 .. function:: geqp3!(A, jpvt, tau)
 
@@ -1413,7 +1413,7 @@ Usually a function has 4 methods defined, one each for ``Float64``,
 
    .. Docstring generated from Julia source
 
-   Compute the pivoted ``QR`` factorization of ``A``\ , ``AP = QR`` using BLAS level 3. ``P`` is a pivoting matrix, represented by ``jpvt``\ . ``jpvt`` must have length length greater than or equal to ``n`` if ``A`` is an ``(m x n)`` matrix.
+   Compute the pivoted ``QR`` factorization of ``A``\ , ``AP = QR`` using BLAS level 3. ``P`` is a pivoting matrix, represented by ``jpvt``\ . ``jpvt`` must have length greater than or equal to ``n`` if ``A`` is an ``(m x n)`` matrix.
 
    Returns ``A`` and ``jpvt``\ , modified in-place, and ``tau``\ , which stores the elementary reflectors.
 
@@ -1439,7 +1439,7 @@ Usually a function has 4 methods defined, one each for ``Float64``,
 
    Compute the ``RQ`` factorization of ``A``\ , ``A = RQ``\ .
 
-   Returns ``A``\ modified in-place, and ``tau``\ , which contains scalars which parameterize the elementary reflectors of the factorization.
+   Returns ``A``\ , modified in-place, and ``tau``\ , which contains scalars which parameterize the elementary reflectors of the factorization.
 
 .. function:: geqrt!(A, T)
 
@@ -1536,12 +1536,6 @@ Usually a function has 4 methods defined, one each for ``Float64``,
    .. Docstring generated from Julia source
 
    Computes the least norm solution of ``A * X = B`` by finding the ``SVD`` factorization of ``A``\ , then dividing-and-conquering the problem. ``B`` is overwritten with the solution ``X``\ . Singular values below ``rcond`` will be treated as zero. Returns the solution in ``B`` and the effective rank of ``A`` in ``rnk``\ .
-
-.. function:: gelsy!(A, B, rcond) -> (B, rnk)
-
-   .. Docstring generated from Julia source
-
-   Computes the least norm solution of ``A * X = B`` by finding the full ``QR`` factorization of ``A``\ , then dividing-and-conquering the problem. ``B`` is overwritten with the solution ``X``\ . Singular values below ``rcond`` will be treated as zero. Returns the solution in ``B`` and the effective rank of ``A`` in ``rnk``\ .
 
 .. function:: gelsy!(A, B, rcond) -> (B, rnk)
 

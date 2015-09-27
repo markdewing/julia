@@ -599,7 +599,7 @@ getrf!(A::StridedMatrix, tau::Vector)
 
 Compute the `LQ` factorization of `A`, `A = LQ`.
 
-Returns `A`modified in-place, and `tau`, which contains scalars
+Returns `A`, modified in-place, and `tau`, which contains scalars
 which parameterize the elementary reflectors of the factorization.
 """
 gelqf!{T<:BlasFloat}(A::StridedMatrix{T}) = ((m,n)=size(A); gelqf!(A,similar(A,T,min(m,n))))
@@ -608,7 +608,7 @@ gelqf!{T<:BlasFloat}(A::StridedMatrix{T}) = ((m,n)=size(A); gelqf!(A,similar(A,T
 
 Compute the `QL` factorization of `A`, `A = QL`.
 
-Returns `A`modified in-place, and `tau`, which contains scalars
+Returns `A`, modified in-place, and `tau`, which contains scalars
 which parameterize the elementary reflectors of the factorization.
 """
 geqlf!{T<:BlasFloat}(A::StridedMatrix{T}) = ((m,n)=size(A); geqlf!(A,similar(A,T,min(m,n))))
@@ -637,7 +637,7 @@ geqrt3!{T<:BlasFloat}(A::StridedMatrix{T}) = (n=size(A,2); geqrt3!(A,similar(A,T
 
 Compute the `QR` factorization of `A`, `A = QR`.
 
-Returns `A`modified in-place, and `tau`, which contains scalars
+Returns `A`, modified in-place, and `tau`, which contains scalars
 which parameterize the elementary reflectors of the factorization.
 """
 geqrf!{T<:BlasFloat}(A::StridedMatrix{T}) = ((m,n)=size(A); geqrf!(A,similar(A,T,min(m,n))))
@@ -646,7 +646,7 @@ geqrf!{T<:BlasFloat}(A::StridedMatrix{T}) = ((m,n)=size(A); geqrf!(A,similar(A,T
 
 Compute the `RQ` factorization of `A`, `A = RQ`.
 
-Returns `A`modified in-place, and `tau`, which contains scalars
+Returns `A`, modified in-place, and `tau`, which contains scalars
 which parameterize the elementary reflectors of the factorization.
 """
 gerqf!{T<:BlasFloat}(A::StridedMatrix{T}) = ((m,n)=size(A); gerqf!(A,similar(A,T,min(m,n))))
@@ -655,7 +655,7 @@ gerqf!{T<:BlasFloat}(A::StridedMatrix{T}) = ((m,n)=size(A); gerqf!(A,similar(A,T
     geqp3!(A, jpvt) -> (A, jpvt, tau)
 
 Compute the pivoted `QR` factorization of `A`, `AP = QR` using BLAS level 3.
-`P` is a pivoting matrix, represented by `jpvt`. `jpvt` must have length length
+`P` is a pivoting matrix, represented by `jpvt`. `jpvt` must have length
 greater than or equal to `n` if `A` is an `(m x n)` matrix.
 
 Returns `A` and `jpvt`, modified in-place, and `tau`, which stores the elementary
